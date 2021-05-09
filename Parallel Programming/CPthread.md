@@ -116,6 +116,7 @@ gcc -pthread -o pthread pthread.c
   void deposit(int money)
   {
       pthread_mutex_lock(&mutex);
+      #account是这里各个线程的共享数据，即临界区
       account = account + money;
       pthread_mutex_unlock(&mutex); return 0;
   }
