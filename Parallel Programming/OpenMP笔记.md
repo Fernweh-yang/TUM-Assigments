@@ -52,12 +52,27 @@ export OMP_NUM_THREADS=4
 }
 ```
 
-用omp_get_thread_num()可以当前代码得到所用的线程索引
+子句`num_threads`:允许程序员指定执行后代码块的线程数
+
+```
+# pragma omp parallel num_threads(thread_count)
+```
+
+当函数被调用时，用`omp_get_thread_num()`可以得到每个线程的编号
 
 ```c
-int c;
-c = omp_get_thread_num();
+int id;
+id = omp_get_thread_num();
 ```
+
+用`omp_get_num_threads()`可以获得线程组的线程数。
+
+```
+int c;
+c = omp_get_num_threads(); 
+```
+
+
 
 - 除了c/c++也可以用Fortran语言(公式翻译语言)
 
@@ -298,7 +313,7 @@ block
 ### Atomic Statements
 
 ```
-#pragma ATOMIC
+#pragma omp atomic
 	expression-stmt
 ```
 
@@ -311,7 +326,8 @@ block
   ```
 
   - where x is an lvalue左值 expression with scalar type标量
-  - and expr does not reference涉及 the object designated指定 by x
+  - and expr does not reference涉及 the object designated指定 by x,不能引用x
+  - binop:二元操作符`+,-,*,/,&,^,|,<<,>>`
 
 - Equivalent等同于 to using critical section to protect the update
 - Useful for simple/fast updates to shared data structures
