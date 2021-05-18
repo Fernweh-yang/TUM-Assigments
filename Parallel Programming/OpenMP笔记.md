@@ -1,3 +1,5 @@
+https://www.openmp.org/spec-html/5.1/openmp.html
+
 # 一个简单的OpenMP程序
 
 ```C
@@ -58,31 +60,58 @@ export OMP_NUM_THREADS=4
 # pragma omp parallel num_threads(thread_count)
 ```
 
-当函数被调用时，用`omp_get_thread_num()`可以得到每个线程的编号
+### 一些重要的runtime routines：
 
-```c
-int id;
-id = omp_get_thread_num();
-```
+- `omp_set_num_threads(count)`设置并行代码段用到的线程数。只能在串行代码区域使用，修改的是环境变量OMP_NUM_THREDS
 
-用`omp_get_num_threads()`可以获得线程组的线程数。
-
-```
-int c;
-c = omp_get_num_threads(); 
-```
-
-
-
-- 除了c/c++也可以用Fortran语言(公式翻译语言)
-
-  ```fortran
-  !$OMP directive name [parameters]
-  如：
-  !$OMP PARALLEL DEFAULT(SHARED)
-  	write(*,*) 'Hello world'	
-  !$OMP END PARALLEL
   ```
+  omp_set_num_threads(3)
+  ```
+
+- `omp_get_max_threads`()获得当前能创建的线程组team的最大线程数。
+
+  ```
+  numthreads = omp_get_max_threads()
+  ```
+
+- `omp_get_thread_num()`可以得到每个线程的编号
+	
+	```c
+	int id;
+	id = omp_get_thread_num();
+	```
+	
+- `omp_get_num_threads()`可以获得当前线程组team的线程数量。
+
+  ```
+  int c;
+  c = omp_get_num_threads()
+  ```
+
+- `omp_get_num_procs()`获得处理器数
+
+  ```
+  numprocs = omp_get_num_procs()
+  ```
+
+### 相关的环境变量
+
+- `OMP_NUM_THREADS=4`并行代码区域内线程组的线程数
+- `OMP_SCHEDULE=”dynamic” ` `OMP_SCHEDULE=”GUIDED,4“` 用于指定do循环的调度方式
+  - 选择在运行时的调度策略scheduling strategy
+  - 调度条款在代码中有优先权
+- `OMP_DYNAMIC=TRUE`允许运行时系统自己确定线程数
+- `OMP_NESTED=TRUE`允许嵌套nesting并行
+
+### 除了c/c++也可以用Fortran语言(公式翻译语言)
+
+	```fortran
+	!$OMP directive name [parameters]
+	如：
+	!$OMP PARALLEL DEFAULT(SHARED)
+		write(*,*) 'Hello world'	
+	!$OMP END PARALLEL
+	```
 
 - 不管C/C++还是Fortran，指令都是写在一行内的。如果一行不够写指令需要：
 
@@ -449,3 +478,162 @@ reduction(operator: list)
   ```
 
   
+
+# OpenMP Task
+
+## 结构Task Constuct
+
+- Explicit creation of tasks
+
+  ```c
+  #pragma omp parallel
+  {
+  	#pragma omp single {
+  	for ( elem = l->first; elem; elem = elem->next)
+  		#pragma omp task
+  		process(elem)
+  }
+  // all tasks are complete by this point
+  }
+  ```
+
+  - Task scheduling
+    - Tasks can be executed by any thread in the team
+  - Barrier
+    - All tasks created in the parallel region have to be finished.
+
+- Tasking Syntax in OpenMP
+
+  ```
+  #pragma omp task [clause list]
+  { ... }
+  ```
+
+  - Select clauses
+
+    `if (scalar-expression)`
+
+    - FALSE: Execution starts immediately by the creating thread
+    - The suspended task may not be resumed until the new task is finished.
+
+    `untied`
+
+    - Task is not tied to the thread starting its execution.
+    - It might be rescheduled to another thread.
+
+    `Default (shared|none), private, firstprivate, shared`
+
+    - Default is firstprivate.
+
+    `priority(value)`
+
+    - Hint to influence order of execution
+    - Must not be used to rely on task ordering
+
+- Example
+
+  ```c
+  struct node {
+  	struct node *left;
+  	struct node *right;
+  };
+  void traverse( struct node *p ) {
+  	if (p->left)
+  		#pragma omp task // p is firstprivate by default
+  		traverse(p->left);
+  		if (p->right)
+  			#pragma omp task // p is firstprivate by default
+  			traverse(p->right);
+  			process(p);
+  }
+  #pragma omp parallel
+  #pragma omp single    //single区域的代码只能由线程组中的一个线程来执行
+  traverse(root);
+  ```
+
+  
+
+## Task Wait and Task Yield
+
+- Task Wait
+
+  ```
+  #pragma omp taskwait
+  { ... }
+  ```
+
+  - Waits for completion of immediate child tasks
+    - Child tasks: Tasks generated since the beginning of the current task
+
+- Task Yield
+
+  ```
+  #pragma omp taskyield
+  { ... }
+  ```
+
+  - The taskyield construct specifies that the current task can be suspended
+    - Explicit task scheduling point
+
+- Implicit task scheduling points
+
+  - Task creation
+  -  End of a task
+  - Taskwait
+  - Barrier synchronization
+
+## Task Dependencies(since OpenMP4.0)
+
+- Defines in/out dependencies between tasks
+
+  - Out: variables produced by this task
+  - In: variables consumed by this task
+  - Inout: variables is both in and out
+  - Influences scheduling order
+
+- Implemented as clause for task construct
+
+  ```
+  #pragma omp task depend(dependency-type: list)
+  { ... }
+  ```
+
+- Example:
+
+  ```
+  #pragma omp task shared(x, ...) depend(out: x) // T1
+  	preprocess_some_data(...);
+  #pragma omp task shared(x, ...) depend(in: x) // T2
+  	do_something_with_data(...);
+  #pragma omp task shared(x, ...) depend(in: x) // T3
+  	do_something_independent_with_data(...);
+  ```
+
+  
+
+## Flush Directive指令
+
+`#pragma omp flush [(list)]`
+
+**强制刷新每个线程的临时视图，使其和内存视图保持一致，即：使线程中缓存的变量值和内存中的变量值保持一致**。
+
+Thread1:
+
+```
+a = foo();
+#pragma omp flush(a,flag)
+flag = 1;
+#pragma omp flush(flag)
+```
+
+Thread2:
+
+```
+while (flag)
+{
+#pragma omp flush(flag)
+}
+#pragma omp flush(a,flag)
+b = a;
+```
+
