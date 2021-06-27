@@ -1,6 +1,7 @@
+
 %% Filter
-Wp = 40/500;     %Passband Rippe
-Ws = 200/500;    %Stopband Attenuation
+Wp = 40/500;     %Passband Corner Frequency
+Ws = 200/500;    %Stopband Corner Frequency
 [n,Wn] = buttord(Wp,Ws,3,40);
 [b,a] = butter(n,Wn);   %Coefficient
 freqz(b,a,512,1000);
@@ -42,4 +43,6 @@ writematrix(signal_combined.','signal_combined.txt');
 filtered_signal = readmatrix('Filtered_Signal.txt');
 figure(4);
 plot(t,filtered_signal.');
+hold on;
+plot(t,signal_sin);
 title('The Signal after filter in C');

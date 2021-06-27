@@ -9,7 +9,7 @@ int main(){
     float X[1001] = {0};
     float Y[1001] = {0};
 
-    /*---Reaf Data---*/
+    /*---Read Data---*/
     FILE *fp;
     fp = fopen("signal_combined.txt","r");
     if(fp==NULL){

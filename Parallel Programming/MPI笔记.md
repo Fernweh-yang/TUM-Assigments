@@ -509,6 +509,14 @@ int main(void){
   
     `int MPI_Type_free(MPI_Datatype* old_mpi_t_p);`
 
+## MPI_Type_commit
+
+- 这个routine是thread-safe的
+
+  `int MPI_Type_commit(MPI_Datatype* datatype)`
+
+  - 这个routine可以安全的被多个threads调用，不需要任何用户提供的thread locks
+
 # MPI程序性能评估
 
 ## 计时MPI_Wtime
